@@ -112,7 +112,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="gathering_data.cpp" />
+    <ClCompile Include="hello_thread.cpp" />
+    <ClCompile Include="hello_thread_lambda.cpp" />
+    <ClCompile Include="lambda.cpp" />
+    <ClCompile Include="monte_carlo.cpp" />
+    <ClCompile Include="multiple_tasks.cpp" />
+    <ClCompile Include="parameters_threads.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
