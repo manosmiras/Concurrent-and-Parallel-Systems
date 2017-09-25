@@ -15,28 +15,21 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="multiple_tasks.cpp">
+    <ClInclude Include="guarded.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="threadsafe_stack.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="guarded.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="parameters_threads.cpp">
+    <ClCompile Include="guarded_main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="lambda.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="hello_thread.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="hello_thread_lambda.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="gathering_data.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="monte_carlo.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="min_max.cpp">
+    <ClCompile Include="threadsafe_stack_main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
