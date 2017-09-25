@@ -56,10 +56,12 @@ int main()
 {
 	generate_randoms();
 
-	// Get the start time
-	auto start = system_clock::now();
+
 	for (unsigned int num_threads = 0; num_threads <= 6; ++num_threads)
 	{
+		// Get the start time
+		auto start = system_clock::now();
+
 		auto total_threads = static_cast<unsigned int>(pow(2.0, num_threads));
 		cout << "Current thread count: " << total_threads << endl;
 		vector<thread> threads;
