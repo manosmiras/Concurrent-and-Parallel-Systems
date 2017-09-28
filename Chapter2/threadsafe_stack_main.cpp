@@ -37,18 +37,18 @@ void popper(shared_ptr<threadsafe_stack<unsigned int>> stack)
 	}
 }
 
-int main()
-{
-	auto stack = make_shared<threadsafe_stack<unsigned int>>();
-
-	// Create two threads
-	thread t1(popper, stack);
-	thread t2(pusher, stack);
-	// Join two threads
-	t1.join();
-	t2.join();
-
-	// Check if the stack is empty
-	cout << "Stack empty = " << stack->empty() << endl;
-	return 0;
-}
+//int main()
+//{
+//	auto stack = make_shared<threadsafe_stack<unsigned int>>();
+//
+//	// Create two threads
+//	thread t1(popper, stack);
+//	thread t2(pusher, stack);
+//	// Join two threads
+//	t1.join();
+//	t2.join();
+//
+//	// Check if the stack is empty
+//	cout << "Stack empty = " << stack->empty() << endl;
+//	return 0;
+//}

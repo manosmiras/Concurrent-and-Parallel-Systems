@@ -32,5 +32,11 @@
     <ClCompile Include="threadsafe_stack_main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="future_find_max.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="mandelbrot.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
