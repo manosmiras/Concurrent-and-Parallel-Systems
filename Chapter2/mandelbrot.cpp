@@ -19,6 +19,9 @@ const double ymax = 1.3;
 const double integral_x = (xmax - xmin) / static_cast<double>(dim);
 const double integral_y = (ymax - ymin) / static_cast<double>(dim);
 
+FIBITMAP* bitmap = FreeImage_Allocate(dim, dim, 24);
+RGBQUAD color;
+
 vector<double> mandelbrot(unsigned int start_y, unsigned int end_y)
 {
 	// Declare values we will use
@@ -49,11 +52,20 @@ vector<double> mandelbrot(unsigned int start_y, unsigned int end_y)
 			auto val = static_cast<double>(loop_count) / static_cast<double>(max_iterations);
 			// Push this value onto the vector
 			results.push_back(val);
+			//cout << val << endl;
+			color.rgbBlue = val * 255.0;
+			color.rgbGreen = val * 255.0;
+			color.rgbRed = val * 255.0;
+			
 			// Increase x based on integral
 			x += integral_x;
+			FreeImage_SetPixelColor(bitmap, x_coord, y_coord, &color);
 		}
 		// Increase y based on integral
 		y += integral_y;
+		//cout << x << ", " << y << endl;
+
+
 	}
 	// Return vector
 	return results;
@@ -61,7 +73,7 @@ vector<double> mandelbrot(unsigned int start_y, unsigned int end_y)
 
 int main()
 {
-	//FreeImage_Initialise();
+	FreeImage_Initialise();
 	auto num_threads = thread::hardware_concurrency();
 
 	// Determine strip height
@@ -85,11 +97,9 @@ int main()
 	{
 		results.push_back(f.get());
 	}
-	
-	for (auto &result : results)
-	{
-		
-	}
+
+	if (FreeImage_Save(FIF_PNG, bitmap, "output.png", 0))
+		cout << "Image saved" << endl;
 
 	return 0;
 }
