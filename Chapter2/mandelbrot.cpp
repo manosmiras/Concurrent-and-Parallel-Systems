@@ -32,11 +32,11 @@ vector<double> mandelbrot(unsigned int start_y, unsigned int end_y)
 
 	// Loop through each line
 	y = ymin + (start_y * integral_y);
-	for (size_t y_coord = start_y; y_coord < end_y; ++y_coord)
+	for (int y_coord = start_y; y_coord < end_y; ++y_coord)
 	{
 		x = xmin;
 		// Loop through each pixel on the line
-		for (size_t x_coord = 0; x_coord < dim; ++x_coord)
+		for (int x_coord = 0; x_coord < dim; ++x_coord)
 		{
 			x1 = 0.0, y1 = 0.0;
 			loop_count = 0;
@@ -82,7 +82,7 @@ int main()
 	// Create futures
 	vector<future<vector<double>>> futures;
 
-	for (size_t i = 0; i < num_threads; ++i)
+	for (int i = 0; i < num_threads; ++i)
 	{
 		unsigned int start = i * strip_height;
 		unsigned int end = (i + 1) * strip_height;
