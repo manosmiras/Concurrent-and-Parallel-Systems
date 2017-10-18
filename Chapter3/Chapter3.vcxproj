@@ -111,7 +111,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="bubble_sort.cpp" />
     <ClCompile Include="calculate_pi.cpp" />
+    <ClCompile Include="omp_mandelbrot.cpp" />
+    <ClCompile Include="scheduling.cpp" />
+    <ClCompile Include="trapezoid.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
