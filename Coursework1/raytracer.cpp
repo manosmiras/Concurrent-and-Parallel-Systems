@@ -9,12 +9,19 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <thread>
+#include <future>
 
 using namespace std;
 using namespace std::chrono;
 
 constexpr size_t MAX_DEPTH = 512; // Upper limit on recursion, increase this on systems with more stack size.
 constexpr double PI = 3.14159265359;
+
+random_device rd;
+default_random_engine generator(rd());
+uniform_real_distribution<double> distribution;
+auto get_random_number = bind(distribution, generator);
 
 template <class T, class Compare>
 constexpr const T &clamp(const T &v, const T &lo, const T &hi, Compare comp)
@@ -289,16 +296,92 @@ bool array2bmp(const std::string &filename, const vector<vec> &pixels, const siz
 	return f.good();
 }
 
+void parallel_radiance(vec &r, vec &cx, vec &cy, vector<vec> &pixels, const size_t &dimension, vector<sphere> &spheres, ray &camera, size_t start_y, size_t end_y, const size_t &samples)
+{
+	for (size_t y = start_y; y < end_y; ++y)
+	{
+		cout << "Rendering " << dimension << " * " << dimension << "pixels. Samples:" << samples * 4 << " spp (" << 100.0 * y / (dimension - 1) << ")" << endl;
+		for (size_t x = 0; x < dimension; ++x)
+		{
+			// TODO: Replace dimension values here with end_y???
+			for (size_t sy = 0, i = (dimension - y - 1) * dimension + x; sy < 2; ++sy)
+			{
+				for (size_t sx = 0; sx < 2; ++sx)
+				{
+					r = vec();
+					for (size_t s = 0; s < samples; ++s)
+					{
+						double r1 = 2 * get_random_number(), dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
+						double r2 = 2 * get_random_number(), dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
+						vec direction = cx * static_cast<double>(((sx + 0.5 + dx) / 2 + x) / dimension - 0.5) + cy * static_cast<double>(((sy + 0.5 + dy) / 2 + y) / dimension - 0.5) + camera.direction;
+						r = r + radiance(spheres, ray(camera.origin + direction * 140, direction.normal()), 0) * (1.0 / samples);
+					}
+					pixels[i] = pixels[i] + vec(clamp(r.x, 0.0, 1.0), clamp(r.y, 0.0, 1.0), clamp(r.z, 0.0, 1.0)) * 0.25;
+				}
+			}
+		}
+	}
+}
+
+vector<vec> parallel_radiance_future(vec &r, vec &cx, vec &cy, vector<vec> &pixels, const size_t &dimension, vector<sphere> &spheres, ray &camera, size_t start_y, size_t end_y, const size_t &samples)
+{
+	vector<vec> local_pixels(dimension * dimension);
+	for (size_t y = start_y; y < end_y; ++y)
+	{
+		cout << "Rendering " << dimension << " * " << dimension << "pixels. Samples:" << samples * 4 << " spp (" << 100.0 * y / (dimension - 1) << ")" << endl;
+		for (size_t x = 0; x < dimension; ++x)
+		{
+			// TODO: Replace dimension values here with end_y???
+			for (size_t sy = 0, i = (dimension - y - 1) * dimension + x; sy < 2; ++sy)
+			{
+				for (size_t sx = 0; sx < 2; ++sx)
+				{
+					r = vec();
+					for (size_t s = 0; s < samples; ++s)
+					{
+						double r1 = 2 * get_random_number(), dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
+						double r2 = 2 * get_random_number(), dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
+						vec direction = cx * static_cast<double>(((sx + 0.5 + dx) / 2 + x) / dimension - 0.5) + cy * static_cast<double>(((sy + 0.5 + dy) / 2 + y) / dimension - 0.5) + camera.direction;
+						r = r + radiance(spheres, ray(camera.origin + direction * 140, direction.normal()), 0) * (1.0 / samples);
+					}
+					local_pixels[i] = local_pixels[i] + vec(clamp(r.x, 0.0, 1.0), clamp(r.y, 0.0, 1.0), clamp(r.z, 0.0, 1.0)) * 0.25;
+				}
+			}
+		}
+	}
+	return local_pixels;
+}
+
+//void parallel_radiance(vec &r, size_t x, size_t sx, vec &cx, size_t y, size_t sy, vec &cy, const size_t &dimension, vector<sphere> &spheres, ray &camera, size_t samples_start, size_t samples_end, const size_t &total_samples)
+//{
+//	for (size_t s = samples_start; s < samples_end; ++s)
+//	{
+//		double r1 = 2 * get_random_number(), dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
+//		double r2 = 2 * get_random_number(), dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
+//		vec direction = cx * static_cast<double>(((sx + 0.5 + dx) / 2 + x) / dimension - 0.5) + cy * static_cast<double>(((sy + 0.5 + dy) / 2 + y) / dimension - 0.5) + camera.direction;
+//		//direction = direction + camera.direction;
+//		r = r + radiance(spheres, ray(camera.origin + direction * 140, direction.normal()), 0) * (1.0 / total_samples);
+//	}
+//}
+
+
 int main(int argc, char **argv)
 {
-	random_device rd;
-	default_random_engine generator(rd());
-	uniform_real_distribution<double> distribution;
-	auto get_random_number = bind(distribution, generator);
+
 
 	// *** These parameters can be manipulated in the algorithm to modify work undertaken ***
-	constexpr size_t dimension = 1024;
-	constexpr size_t samples = 256; // Algorithm performs 4 * samples per pixel.
+	const size_t dimension = 512;
+	const size_t samples = 16; // Algorithm performs 4 * samples per pixel.
+
+	auto num_threads = thread::hardware_concurrency();
+
+	std::cout << "Number of threads allocated: " << num_threads << endl;
+
+	// Determine strip height
+	auto strip_height = dimension / num_threads;
+
+	vector<thread> threads;
+	vector<future<vector<vec>>> futures;
 	vector<sphere> spheres
 	{
 		sphere(1e5, vec(1e5 + 1, 40.8, 81.6), vec(), vec(0.75, 0.25, 0.25), reflection_type::DIFFUSE),
@@ -319,28 +402,73 @@ int main(int argc, char **argv)
 	vec r;
 	vector<vec> pixels(dimension * dimension);
 
-	for (size_t y = 0; y < dimension; ++y)
+	for (int i = 0; i < num_threads; ++i)
 	{
-		cout << "Rendering " << dimension << " * " << dimension << "pixels. Samples:" << samples * 4 << " spp (" << 100.0 * y / (dimension - 1) << ")" << endl;
-		for (size_t x = 0; x < dimension; ++x)
+		size_t start = i * strip_height;
+		size_t end = (i + 1) * strip_height;
+		// Range is used to determine number of values to process
+		//threads.push_back(thread(parallel_radiance, r, cx, cy, pixels, dimension, spheres, camera, start, end, samples));
+		futures.push_back(async(parallel_radiance_future, r, cx, cy, pixels, dimension, spheres, camera, start, end, samples));
+	}
+
+	// Get results
+	for (auto &f : futures)
+	{
+		for (vec &v : f.get())
 		{
-			for (size_t sy = 0, i = (dimension - y - 1) * dimension + x; sy < 2; ++sy)
-			{
-				for (size_t sx = 0; sx < 2; ++sx)
-				{
-					r = vec();
-					for (size_t s = 0; s < samples; ++s)
-					{
-						double r1 = 2 * get_random_number(), dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
-						double r2 = 2 * get_random_number(), dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
-						vec direction = cx * static_cast<double>(((sx + 0.5 + dx) / 2 + x) / dimension - 0.5) + cy * static_cast<double>(((sy + 0.5 + dy) / 2 + y) / dimension - 0.5) + camera.direction;
-						r = r + radiance(spheres, ray(camera.origin + direction * 140, direction.normal()), 0) * (1.0 / samples);
-					}
-					pixels[i] = pixels[i] + vec(clamp(r.x, 0.0, 1.0), clamp(r.y, 0.0, 1.0), clamp(r.z, 0.0, 1.0)) * 0.25;
-				}
-			}
+			pixels.push_back(v);
 		}
 	}
+
+	//// Join the threads
+	//for (auto &t : threads)
+	//	t.join();
+
+	//for (size_t y = 0; y < dimension; ++y)
+	//{
+	//	cout << "Rendering " << dimension << " * " << dimension << "pixels. Samples:" << samples * 4 << " spp (" << 100.0 * y / (dimension - 1) << ")" << endl;
+	//	for (size_t x = 0; x < dimension; ++x)
+	//	{
+	//		for (size_t sy = 0, i = (dimension - y - 1) * dimension + x; sy < 2; ++sy)
+	//		{
+	//			for (size_t sx = 0; sx < 2; ++sx)
+	//			{
+	//				r = vec();
+	//				//for (size_t s = 0; s < samples; ++s)
+	//				//{
+	//				//	double r1 = 2 * get_random_number(), dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
+	//				//	double r2 = 2 * get_random_number(), dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
+	//				//	vec direction = cx * static_cast<double>(((sx + 0.5 + dx) / 2 + x) / dimension - 0.5) + cy * static_cast<double>(((sy + 0.5 + dy) / 2 + y) / dimension - 0.5); //+ camera.direction;
+	//				//	direction = direction + camera.direction;
+	//				//	r = r + radiance(spheres, ray(camera.origin + direction * 140, direction.normal()), 0) * (1.0 / samples);
+	//				//}
+	//				for (size_t i = 0; i < num_threads; ++i)
+	//				{
+	//					size_t start = i * strip_height;
+	//					size_t end = (i + 1) * strip_height;
+
+	//					std::cout << "start is: " << start << endl;
+	//					std::cout << "end is: " << end << endl;
+	//					// Range is used to determine number of values to process
+	//					threads.push_back(thread(parallel_radiance, r, x, sx, cx, y, sy, cy, dimension, spheres, camera, start, end, samples));
+	//					//thread t = thread(parallel_radiance, r, x, sx, cx, y, sy, cy, dimension, spheres, camera, start, end, samples);
+	//					//t.join();
+	//				}
+
+	//				for (int i = 0; i < threads.size(); ++i)
+	//				{
+	//					threads[i].join();
+	//				}
+
+	//				//// Join the threads
+	//				//for (auto &t : threads)
+	//				//	t.join();
+
+	//				pixels[i] = pixels[i] + vec(clamp(r.x, 0.0, 1.0), clamp(r.y, 0.0, 1.0), clamp(r.z, 0.0, 1.0)) * 0.25;
+	//			}
+	//		}
+	//	}
+	//}
 	cout << "img.bmp" << (array2bmp("img.bmp", pixels, dimension, dimension) ? " Saved\n" : " Save Failed\n");
 	return 0;
 }
