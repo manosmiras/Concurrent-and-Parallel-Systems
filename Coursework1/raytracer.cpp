@@ -325,14 +325,15 @@ void parallel_radiance(vec &r, vec &cx, vec &cy, vector<vec> &pixels, const size
 
 vector<vec> parallel_radiance_future(vec &r, vec &cx, vec &cy, vector<vec> &pixels, const size_t &dimension, vector<sphere> &spheres, ray &camera, size_t start_y, size_t end_y, const size_t &samples)
 {
-	vector<vec> local_pixels(dimension * dimension);
+	size_t search_space = end_y - start_y;
+	vector<vec> local_pixels(search_space * dimension);
 	for (size_t y = start_y; y < end_y; ++y)
 	{
 		cout << "Rendering " << dimension << " * " << dimension << "pixels. Samples:" << samples * 4 << " spp (" << 100.0 * y / (dimension - 1) << ")" << endl;
 		for (size_t x = 0; x < dimension; ++x)
 		{
 			// TODO: Replace dimension values here with end_y???
-			for (size_t sy = 0, i = (dimension - y - 1) * dimension + x; sy < 2; ++sy)
+			for (size_t sy = 0, i = (end_y - y - 1) * dimension + x; sy < 2; ++sy)
 			{
 				for (size_t sx = 0; sx < 2; ++sx)
 				{
@@ -345,6 +346,7 @@ vector<vec> parallel_radiance_future(vec &r, vec &cx, vec &cy, vector<vec> &pixe
 						r = r + radiance(spheres, ray(camera.origin + direction * 140, direction.normal()), 0) * (1.0 / samples);
 					}
 					local_pixels[i] = local_pixels[i] + vec(clamp(r.x, 0.0, 1.0), clamp(r.y, 0.0, 1.0), clamp(r.z, 0.0, 1.0)) * 0.25;
+					//pixels[i] = pixels[i] + local_pixels[i];
 				}
 			}
 		}
@@ -371,7 +373,7 @@ int main(int argc, char **argv)
 
 	// *** These parameters can be manipulated in the algorithm to modify work undertaken ***
 	const size_t dimension = 512;
-	const size_t samples = 16; // Algorithm performs 4 * samples per pixel.
+	const size_t samples = 64; // Algorithm performs 4 * samples per pixel.
 
 	auto num_threads = thread::hardware_concurrency();
 
@@ -400,7 +402,8 @@ int main(int argc, char **argv)
 	vec cx = vec(0.5135);
 	vec cy = (cx.cross(camera.direction)).normal() * 0.5135;
 	vec r;
-	vector<vec> pixels(dimension * dimension);
+	//vector<vec> pixels(dimension * dimension);
+	vector<vec> pixels;
 
 	for (int i = 0; i < num_threads; ++i)
 	{
@@ -411,14 +414,39 @@ int main(int argc, char **argv)
 		futures.push_back(async(parallel_radiance_future, r, cx, cy, pixels, dimension, spheres, camera, start, end, samples));
 	}
 
-	// Get results
-	for (auto &f : futures)
+	//for (size_t i = num_threads - 1; i > -1; --i)
+	//{
+	//	for (vec &v : futures[i].get())
+	//	{
+	//		pixels.push_back(v);
+	//	}
+	//}
+
+	for (vec &v : futures[3].get())
 	{
-		for (vec &v : f.get())
-		{
-			pixels.push_back(v);
-		}
+		pixels.push_back(v);
 	}
+	for (vec &v : futures[2].get())
+	{
+		pixels.push_back(v);
+	}
+	for (vec &v : futures[1].get())
+	{
+		pixels.push_back(v);
+	}
+	for (vec &v : futures[0].get())
+	{
+		pixels.push_back(v);
+	}
+
+	//// Get results
+	//for (auto &f : futures)
+	//{
+	//	for (vec &v : f.get())
+	//	{
+	//		pixels.push_back(v);
+	//	}
+	//}
 
 	//// Join the threads
 	//for (auto &t : threads)
@@ -434,31 +462,31 @@ int main(int argc, char **argv)
 	//			for (size_t sx = 0; sx < 2; ++sx)
 	//			{
 	//				r = vec();
-	//				//for (size_t s = 0; s < samples; ++s)
+	//				for (size_t s = 0; s < samples; ++s)
+	//				{
+	//					double r1 = 2 * get_random_number(), dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
+	//					double r2 = 2 * get_random_number(), dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
+	//					vec direction = cx * static_cast<double>(((sx + 0.5 + dx) / 2 + x) / dimension - 0.5) + cy * static_cast<double>(((sy + 0.5 + dy) / 2 + y) / dimension - 0.5); //+ camera.direction;
+	//					direction = direction + camera.direction;
+	//					r = r + radiance(spheres, ray(camera.origin + direction * 140, direction.normal()), 0) * (1.0 / samples);
+	//				}
+	//				//for (size_t i = 0; i < num_threads; ++i)
 	//				//{
-	//				//	double r1 = 2 * get_random_number(), dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
-	//				//	double r2 = 2 * get_random_number(), dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
-	//				//	vec direction = cx * static_cast<double>(((sx + 0.5 + dx) / 2 + x) / dimension - 0.5) + cy * static_cast<double>(((sy + 0.5 + dy) / 2 + y) / dimension - 0.5); //+ camera.direction;
-	//				//	direction = direction + camera.direction;
-	//				//	r = r + radiance(spheres, ray(camera.origin + direction * 140, direction.normal()), 0) * (1.0 / samples);
+	//				//	size_t start = i * strip_height;
+	//				//	size_t end = (i + 1) * strip_height;
+
+	//				//	std::cout << "start is: " << start << endl;
+	//				//	std::cout << "end is: " << end << endl;
+	//				//	// Range is used to determine number of values to process
+	//				//	threads.push_back(thread(parallel_radiance, r, x, sx, cx, y, sy, cy, dimension, spheres, camera, start, end, samples));
+	//				//	//thread t = thread(parallel_radiance, r, x, sx, cx, y, sy, cy, dimension, spheres, camera, start, end, samples);
+	//				//	//t.join();
 	//				//}
-	//				for (size_t i = 0; i < num_threads; ++i)
-	//				{
-	//					size_t start = i * strip_height;
-	//					size_t end = (i + 1) * strip_height;
 
-	//					std::cout << "start is: " << start << endl;
-	//					std::cout << "end is: " << end << endl;
-	//					// Range is used to determine number of values to process
-	//					threads.push_back(thread(parallel_radiance, r, x, sx, cx, y, sy, cy, dimension, spheres, camera, start, end, samples));
-	//					//thread t = thread(parallel_radiance, r, x, sx, cx, y, sy, cy, dimension, spheres, camera, start, end, samples);
-	//					//t.join();
-	//				}
-
-	//				for (int i = 0; i < threads.size(); ++i)
-	//				{
-	//					threads[i].join();
-	//				}
+	//				//for (int i = 0; i < threads.size(); ++i)
+	//				//{
+	//				//	threads[i].join();
+	//				//}
 
 	//				//// Join the threads
 	//				//for (auto &t : threads)
@@ -469,6 +497,7 @@ int main(int argc, char **argv)
 	//		}
 	//	}
 	//}
+
 	cout << "img.bmp" << (array2bmp("img.bmp", pixels, dimension, dimension) ? " Saved\n" : " Save Failed\n");
 	return 0;
 }
