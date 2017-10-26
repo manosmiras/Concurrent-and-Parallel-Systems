@@ -372,8 +372,8 @@ int main(int argc, char **argv)
 
 
 	// *** These parameters can be manipulated in the algorithm to modify work undertaken ***
-	const size_t dimension = 512;
-	const size_t samples = 64; // Algorithm performs 4 * samples per pixel.
+	const size_t dimension = 4096;
+	const size_t samples = 4; // Algorithm performs 4 * samples per pixel.
 
 	auto num_threads = thread::hardware_concurrency();
 
@@ -405,6 +405,9 @@ int main(int argc, char **argv)
 	//vector<vec> pixels(dimension * dimension);
 	vector<vec> pixels;
 
+	// Get the start time
+	auto start = system_clock::now();
+
 	for (int i = 0; i < num_threads; ++i)
 	{
 		size_t start = i * strip_height;
@@ -414,29 +417,13 @@ int main(int argc, char **argv)
 		futures.push_back(async(parallel_radiance_future, r, cx, cy, pixels, dimension, spheres, camera, start, end, samples));
 	}
 
-	//for (size_t i = num_threads - 1; i > -1; --i)
-	//{
-	//	for (vec &v : futures[i].get())
-	//	{
-	//		pixels.push_back(v);
-	//	}
-	//}
-
-	for (vec &v : futures[3].get())
+	for (int i = num_threads; i--> 0; )
 	{
-		pixels.push_back(v);
-	}
-	for (vec &v : futures[2].get())
-	{
-		pixels.push_back(v);
-	}
-	for (vec &v : futures[1].get())
-	{
-		pixels.push_back(v);
-	}
-	for (vec &v : futures[0].get())
-	{
-		pixels.push_back(v);
+		//std::cout << i << std::endl;
+		for (vec &v : futures[i].get())
+		{
+			pixels.push_back(v);
+		}
 	}
 
 	//// Get results
@@ -497,6 +484,13 @@ int main(int argc, char **argv)
 	//		}
 	//	}
 	//}
+	// Get the end time
+	auto end = system_clock::now();
+
+	// Get the total time
+	auto total = end - start;
+
+	cout << "Time taken: " << duration_cast<milliseconds>(total).count() << " ms" << endl;
 
 	cout << "img.bmp" << (array2bmp("img.bmp", pixels, dimension, dimension) ? " Saved\n" : " Save Failed\n");
 	return 0;
