@@ -4,6 +4,8 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <array>
+
 void initialise_opencl(std::vector<cl_platform_id> &platforms, std::vector<cl_device_id> &devices, cl_context &context, cl_command_queue &cmd_queue)
 {
 	// Status of OpenCL calls
@@ -116,13 +118,80 @@ int main()
 	// Print info
 	print_opencl_info(devices);
 
+
 	// Load program
 	auto program = load_program("kernel.cl", context, devices[0], devices.size());
 
 	// Create the kernel
 	auto kernel = clCreateKernel(program, "vecadd", &status);
 
+	// ======================================
+
+	// Number of elements and size of buffer on GPU
+	const unsigned int elements = 2048;
+	const unsigned int data_size = sizeof(int) * elements;
+
+	// Host data - stored in main memory
+	std::array<int, elements> A;
+	std::array<int, elements> B;
+	std::array<int, elements> C;
+
+	// Initialise input data
+	for (size_t i = 0; i < elements; i++)
+	{
+		A[i] = B[i] = i;
+	}
+
+	// Create device buffer - stored on GPU
+	cl_mem buffer_A; // Input array on the device
+	cl_mem buffer_B; // Input array on the device
+	cl_mem buffer_C; // Output array on the device
+					 // Allocate buffer size
+	buffer_A = clCreateBuffer(context, CL_MEM_READ_ONLY, data_size, nullptr, &status);
+	buffer_B = clCreateBuffer(context, CL_MEM_READ_ONLY, data_size, nullptr, &status);
+	buffer_C = clCreateBuffer(context, CL_MEM_READ_ONLY, data_size, nullptr, &status);
+
+	status = clEnqueueWriteBuffer(cmd_queue, buffer_A, CL_FALSE, 0, data_size, A.data(), 0, nullptr, nullptr);
+	status = clEnqueueWriteBuffer(cmd_queue, buffer_B, CL_FALSE, 0, data_size, B.data(), 0, nullptr, nullptr);
+
+	status = clSetKernelArg(kernel, 0, sizeof(cl_mem), &buffer_A);
+	status |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &buffer_B);
+	status |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &buffer_C);
+
+	// ======================================
+
+	// Configure the work dimensions - 1D of elements
+	std::array<size_t, 1> global_work_size = { elements };
+	// Enqueue the kernel for execution
+	status = clEnqueueNDRangeKernel(cmd_queue, kernel, 1, nullptr, global_work_size.data(), nullptr, 0, nullptr, nullptr);
+	// Read the output buffer from the GPU to main memory
+	clEnqueueReadBuffer(cmd_queue, buffer_C, CL_TRUE, 0, data_size, C.data(), 0, nullptr, nullptr);
+
+	// Verify the output
+	auto result = true;
+	int i = 0;
+	// Iterate through each value in result array
+	for (auto &e : C)
+	{
+		// Check value
+		if (e != i + i)
+		{
+			result = false;
+			break;
+		}
+		++i;
+	}
+	// Check if result is true and display accordingly
+	if (result)
+		std::cout << "Output is correct" << std::endl;
+	else
+		std::cout << "Output is incorrect" << std::endl;
+
 	// Free OpenCL resources
+	clReleaseMemObject(buffer_A);
+	clReleaseMemObject(buffer_B);
+	clReleaseMemObject(buffer_C);
+
 	clReleaseCommandQueue(cmd_queue);
 	clReleaseContext(context);
 	clReleaseKernel(kernel);
